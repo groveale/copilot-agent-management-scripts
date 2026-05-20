@@ -77,7 +77,10 @@ param (
         "PilotUsers",
         "DeletionQueue"
     )]
-    [string[]]$ExcludeLists = @()
+    [string[]]$ExcludeLists = @(),
+
+    # When set, deletes all items from the selected lists instead of creating them.
+    [switch]$ClearItems
 )
 
 #############################################################
@@ -118,11 +121,61 @@ if ($IncludeLists.Count -gt 0) {
 function ShouldCreate([string]$key) { return $key -in $enabledLists }
 
 #############################################################
+# List key → display name mapping
+#############################################################
+
+$listDisplayNames = @{
+    "AgentInventory"        = "Agent Inventory"
+    "AgentCapabilities"     = "Agent Capabilities"
+    "QueryQueue"            = "Query Queue"
+    "UsageDaily"            = "Agent Usage - Daily"
+    "UsageWeekly"           = "Agent Usage - Weekly"
+    "UsageMonthly"          = "Agent Usage - Monthly"
+    "UsageAllTime"          = "Agent Usage - AllTime"
+    "DataSourcesUsed"       = "Agent Data Sources Used"
+    "RiskyPromptCriteria"   = "Risky Prompt Criteria"
+    "PolicyRules"           = "Policy Rules"
+    "NotificationLog"       = "Notification Log"
+    "DataOwnerMapping"      = "Data Owner Mapping"
+    "NotificationTemplates" = "Notification Templates"
+    "PilotUsers"            = "Pilot Users"
+    "DeletionQueue"         = "Deletion Queue"
+}
+
+#############################################################
 # Connect
 #############################################################
 
 Write-Output "Connecting to $SiteUrl..."
 Connect-PnPOnline -Url $SiteUrl -ClientId $ClientId -Interactive
+
+#############################################################
+# Clear Items mode
+#############################################################
+
+if ($ClearItems) {
+    foreach ($key in $enabledLists) {
+        $listName = $listDisplayNames[$key]
+        if (-not $listName) { continue }
+        $existing = Get-PnPList -Identity $listName -ErrorAction SilentlyContinue
+        if (-not $existing) {
+            Write-Output "List '$listName' does not exist — skipping."
+            continue
+        }
+        Write-Output "Clearing all items from '$listName'..."
+        $items = Get-PnPListItem -List $listName -PageSize 500
+        if ($items.Count -eq 0) {
+            Write-Output "  (already empty)"
+            continue
+        }
+        $batch = New-PnPBatch
+        $items | ForEach-Object { Remove-PnPListItem -List $listName -Identity $_.Id -Batch $batch }
+        Invoke-PnPBatch -Batch $batch
+        Write-Output "  Deleted $($items.Count) items."
+    }
+    Write-Output "`nClear complete."
+    exit 0
+}
 
 #############################################################
 # Idempotent helpers
@@ -478,7 +531,9 @@ if (ShouldCreate "NotificationLog") {
         "SharingLimit",
         "RiskyPromptFlag",
         "DescriptionNonCompliant",
-        "EmbeddedFileBlock"
+        "EmbeddedFileBlock",
+        "EmbeddedFileWarning",
+        "RiskyPromptWarning"
     ) -Required
     Ensure-Field -List $log -DisplayName "RecipientEmail" -InternalName "RecipientEmail" -Type Text
     Ensure-Field -List $log -DisplayName "SentDate" -InternalName "SentDate" -Type DateTime
@@ -537,10 +592,13 @@ if (ShouldCreate "NotificationTemplates") {
         "SharingLimit",
         "RiskyPromptFlag",
         "DescriptionNonCompliant",
-        "EmbeddedFileBlock"
+        "EmbeddedFileBlock",
+        "EmbeddedFileWarning",
+        "RiskyPromptWarning"
     ) -Required
     Ensure-Field -List $templates -DisplayName "Description" -InternalName "Description" -Type Note
     Ensure-Field -List $templates -DisplayName "ImageUrl" -InternalName "ImageUrl" -Type Text
+    Ensure-Field -List $templates -DisplayName "LearnMoreUrl" -InternalName "LearnMoreUrl" -Type Text
     Ensure-Field -List $templates -DisplayName "AdaptiveCardJson" -InternalName "AdaptiveCardJson" -Type Note
 
     Ensure-Index -List $templates -Field "NotificationType"
@@ -599,8 +657,13 @@ if (ShouldCreate "NotificationTemplates") {
   "actions": [
     {
       "type": "Action.OpenUrl",
-      "title": "Edit Agent",
+      "title": "Open Agent Builder",
       "url": "https://m365.cloud.microsoft/chat/agent/edit/${PackageId}.${ElementId}"
+    },
+    {
+      "type": "Action.OpenUrl",
+      "title": "Learn More",
+      "url": "${LearnMoreUrl}"
     }
   ]
 }
@@ -652,8 +715,13 @@ if (ShouldCreate "NotificationTemplates") {
   "actions": [
     {
       "type": "Action.OpenUrl",
-      "title": "Edit Agent",
+      "title": "Open Agent Builder",
       "url": "https://m365.cloud.microsoft/chat/agent/edit/${PackageId}.${ElementId}"
+    },
+    {
+      "type": "Action.OpenUrl",
+      "title": "Learn More",
+      "url": "${LearnMoreUrl}"
     }
   ]
 }
@@ -664,6 +732,64 @@ if (ShouldCreate "NotificationTemplates") {
             Description      = "Sent when an agent's instructions or description match keywords from the Risky Prompt Criteria list (e.g. ICFR, Security, Performance Management). Flagged for governance review."
             ImageUrl         = ""
             AdaptiveCardJson = $riskyPromptCard
+        } | Out-Null
+
+        # --- RiskyPromptWarning ---
+        $riskyPromptWarningCard = @'
+{
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.4",
+  "body": [
+    {
+      "type": "TextBlock",
+      "text": "\u26a0\ufe0f Policy Notice \u2014 Risky Prompt Detected",
+      "weight": "Bolder",
+      "size": "Large",
+      "color": "Warning"
+    },
+    {
+      "type": "TextBlock",
+      "text": "Hi ${OwnerDisplayName}, your agent's instructions or description contain flagged keywords. Please review and update your agent before enforcement begins.",
+      "wrap": true
+    },
+    {
+      "type": "FactSet",
+      "facts": [
+        { "title": "Agent", "value": "${AgentName}" },
+        { "title": "Package ID", "value": "${PackageId}" },
+        { "title": "Platform", "value": "${Platform}" },
+        { "title": "Matched keywords", "value": "${RiskyPromptMatches}" },
+        { "title": "Flagged on", "value": "${FlaggedDate}" }
+      ]
+    },
+    {
+      "type": "TextBlock",
+      "text": "Your agent is not blocked today. However, agents with flagged keywords will be subject to governance review. Please update your agent's instructions to remove or clarify the flagged content.",
+      "wrap": true,
+      "spacing": "Medium"
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.OpenUrl",
+      "title": "Open Agent Builder",
+      "url": "https://m365.cloud.microsoft/chat/agent/edit/${PackageId}.${ElementId}"
+    },
+    {
+      "type": "Action.OpenUrl",
+      "title": "Learn More",
+      "url": "${LearnMoreUrl}"
+    }
+  ]
+}
+'@
+        Add-PnPListItem -List $templates -Values @{
+            Title            = "Risky Prompt Warning (Pre-Block)"
+            NotificationType = "RiskyPromptWarning"
+            Description      = "Sent as a warning when an agent has flagged keywords. Agent is not yet blocked but is subject to upcoming governance review."
+            ImageUrl         = ""
+            AdaptiveCardJson = $riskyPromptWarningCard
         } | Out-Null
 
         # --- EmbeddedFileBlock ---
@@ -704,8 +830,13 @@ if (ShouldCreate "NotificationTemplates") {
   "actions": [
     {
       "type": "Action.OpenUrl",
-      "title": "Edit Agent",
+      "title": "Open Agent Builder",
       "url": "https://m365.cloud.microsoft/chat/agent/edit/${PackageId}.${ElementId}"
+    },
+    {
+      "type": "Action.OpenUrl",
+      "title": "Learn More",
+      "url": "${LearnMoreUrl}"
     }
   ]
 }
@@ -758,6 +889,11 @@ if (ShouldCreate "NotificationTemplates") {
       "type": "Action.OpenUrl",
       "title": "Open Agent",
       "url": "https://m365.cloud.microsoft/chat/agent/${PackageId}.${ElementId}"
+    },
+    {
+      "type": "Action.OpenUrl",
+      "title": "Learn More",
+      "url": "${LearnMoreUrl}"
     }
   ]
 }
@@ -811,6 +947,11 @@ if (ShouldCreate "NotificationTemplates") {
       "type": "Action.OpenUrl",
       "title": "Open Agent",
       "url": "https://m365.cloud.microsoft/chat/agent/${PackageId}.${ElementId}"
+    },
+    {
+      "type": "Action.OpenUrl",
+      "title": "Learn More",
+      "url": "${LearnMoreUrl}"
     }
   ]
 }
@@ -864,6 +1005,11 @@ if (ShouldCreate "NotificationTemplates") {
       "type": "Action.OpenUrl",
       "title": "Open Agent",
       "url": "https://m365.cloud.microsoft/chat/agent/${PackageId}.${ElementId}"
+    },
+    {
+      "type": "Action.OpenUrl",
+      "title": "Learn More",
+      "url": "${LearnMoreUrl}"
     }
   ]
 }
@@ -917,6 +1063,11 @@ if (ShouldCreate "NotificationTemplates") {
       "type": "Action.OpenUrl",
       "title": "Open Agent",
       "url": "https://m365.cloud.microsoft/chat/agent/${PackageId}.${ElementId}"
+    },
+    {
+      "type": "Action.OpenUrl",
+      "title": "Learn More",
+      "url": "${LearnMoreUrl}"
     }
   ]
 }
@@ -929,7 +1080,64 @@ if (ShouldCreate "NotificationTemplates") {
             AdaptiveCardJson = $inactivityDeletionCard
         } | Out-Null
 
-        Write-Output "Seeded 7 notification templates."
+        # --- EmbeddedFileWarning ---
+        $embeddedFileWarningCard = @'
+{
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.4",
+  "body": [
+    {
+      "type": "TextBlock",
+      "text": "⚠️ Policy Notice — Embedded Files Must Be Removed",
+      "weight": "Bolder",
+      "size": "Large",
+      "color": "Warning"
+    },
+    {
+      "type": "TextBlock",
+      "text": "Hi ${OwnerDisplayName}, your agent contains embedded knowledge files. Under updated governance policy, agents with uploaded files must migrate to SharePoint or OneDrive knowledge sources.",
+      "wrap": true
+    },
+    {
+      "type": "FactSet",
+      "facts": [
+        { "title": "Agent", "value": "${AgentName}" },
+        { "title": "Package ID", "value": "${PackageId}" },
+        { "title": "Platform", "value": "${Platform}" },
+        { "title": "Flagged on", "value": "${FlaggedDate}" }
+      ]
+    },
+    {
+      "type": "TextBlock",
+      "text": "Your agent is not blocked today, but will be automatically blocked on June 30, 2026 if embedded files are not removed. Please update your agent to use SharePoint or OneDrive as the knowledge source before the deadline.",
+      "wrap": true,
+      "spacing": "Medium"
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.OpenUrl",
+      "title": "Open Agent Builder",
+      "url": "https://m365.cloud.microsoft/chat/agent/edit/${PackageId}.${ElementId}"
+    },
+    {
+      "type": "Action.OpenUrl",
+      "title": "Learn More",
+      "url": "${LearnMoreUrl}"
+    }
+  ]
+}
+'@
+        Add-PnPListItem -List $templates -Values @{
+            Title            = "Embedded Files Warning (Pre-Block)"
+            NotificationType = "EmbeddedFileWarning"
+            Description      = "Sent as a warning when an agent has embedded files. Agent is not yet blocked but will be on June 30, 2026 if not remediated."
+            ImageUrl         = ""
+            AdaptiveCardJson = $embeddedFileWarningCard
+        } | Out-Null
+
+        Write-Output "Seeded 9 notification templates."
     } else {
         Write-Output "Seed data already exists — skipping."
     }
