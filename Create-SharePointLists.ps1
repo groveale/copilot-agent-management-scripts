@@ -20,6 +20,7 @@
 #  13. Notification Templates   — Adaptive Card JSON templates keyed by notification type
 #  14. Pilot Users              — UPN and ID of users in the pilot program
 #  15. Deletion Queue           — agents flagged for deletion, actioned by an admin
+#  16. Sync State               — high-water-mark timestamps for incremental sync jobs
 #
 # Note: Instruction compliance is handled via the NeedsPromptScan flag on Agent Inventory
 #       (no separate queue list needed).
@@ -56,7 +57,8 @@ param (
         "DataOwnerMapping",
         "NotificationTemplates",
         "PilotUsers",
-        "DeletionQueue"
+        "DeletionQueue",
+        "SyncState"
     )]
     [string[]]$IncludeLists = @(),
 
@@ -75,7 +77,8 @@ param (
         "DataOwnerMapping",
         "NotificationTemplates",
         "PilotUsers",
-        "DeletionQueue"
+        "DeletionQueue",
+        "SyncState"
     )]
     [string[]]$ExcludeLists = @(),
 
@@ -107,7 +110,8 @@ $allListKeys = @(
     "DataOwnerMapping",
     "NotificationTemplates",
     "PilotUsers",
-    "DeletionQueue"
+    "DeletionQueue",
+    "SyncState"
 )
 
 if ($IncludeLists.Count -gt 0) {
@@ -140,6 +144,7 @@ $listDisplayNames = @{
     "NotificationTemplates" = "Notification Templates"
     "PilotUsers"            = "Pilot Users"
     "DeletionQueue"         = "Deletion Queue"
+    "SyncState"             = "Sync State"
 }
 
 #############################################################
@@ -1190,6 +1195,23 @@ if (ShouldCreate "DeletionQueue") {
     Ensure-Index -List $delQueue -Field "Status"
 
     Write-Output "Done: $delQueue"
+}
+
+#############################################################
+# 16. Sync State
+#############################################################
+
+if (ShouldCreate "SyncState") {
+    $sync = "Sync State"
+    Write-Output "`n--- $sync ---"
+    Ensure-List -Title $sync
+
+    Ensure-Field -List $sync -DisplayName "SyncKey" -InternalName "SyncKey" -Type Text -Required
+    Ensure-Field -List $sync -DisplayName "LastSyncTime" -InternalName "LastSyncTime" -Type DateTime -Required
+
+    Ensure-Index -List $sync -Field "SyncKey"
+
+    Write-Output "Done: $sync"
 }
 
 #############################################################

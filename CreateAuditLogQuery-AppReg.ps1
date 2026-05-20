@@ -12,8 +12,8 @@
 #############################################################
 
 param (
-    [DateTime]$startDate = (Get-Date).AddDays(-7),
-    [DateTime]$endDate = (Get-Date),
+    [DateTime]$startDate = (Get-Date).Date.AddDays(-1),
+    [DateTime]$endDate = (Get-Date).Date,
     [string]$SharePointSiteId = "",   # Graph site ID, e.g. contoso.sharepoint.com,{siteGuid},{webGuid}
     [string]$SharePointListId = "",   # GUID of the target SharePoint list
 
