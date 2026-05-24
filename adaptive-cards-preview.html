@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentGuard Notification Templates — Adaptive Card Preview</title>
+    <script src="https://unpkg.com/adaptivecards@3.0.1/dist/adaptivecards.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f5f5f5;
+            padding: 2rem;
+            color: #242424;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 0.5rem;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+        .subtitle {
+            text-align: center;
+            color: #616161;
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(520px, 1fr));
+            gap: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .card-wrapper {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        .card-header {
+            background: #ebebeb;
+            padding: 0.6rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .card-header .bot-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #5b5fc7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .card-header .bot-name {
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .card-header .timestamp {
+            margin-left: auto;
+            font-size: 0.75rem;
+            color: #616161;
+        }
+        .card-body {
+            padding: 1rem;
+        }
+        .card-body .ac-adaptiveCard {
+            border: 1px solid #e0e0e0 !important;
+            border-radius: 6px !important;
+            padding: 12px !important;
+        }
+        .card-label {
+            display: inline-block;
+            background: #e8eaf6;
+            color: #3949ab;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        /* Prevent title/text truncation */
+        .card-body .ac-textBlock {
+            overflow: visible !important;
+            text-overflow: unset !important;
+            white-space: normal !important;
+        }
+        /* Teams-like button styling */
+        .card-body .ac-pushButton {
+            background: #5b5fc7 !important;
+            color: #fff !important;
+            border: none !important;
+            border-radius: 4px !important;
+            padding: 6px 16px !important;
+            font-weight: 600 !important;
+            font-size: 13px !important;
+            cursor: pointer !important;
+            margin-right: 8px !important;
+        }
+        .card-body .ac-pushButton:hover {
+            background: #4a4eb5 !important;
+        }
+        /* Fact styling */
+        .card-body .ac-fact-title {
+            font-weight: 600 !important;
+            color: #424242 !important;
+        }
+        .card-body .ac-fact-value {
+            color: #616161 !important;
+        }
+        @media (max-width: 500px) {
+            .cards-grid { grid-template-columns: 1fr; }
+            body { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <h1>AgentGuard — Notification Card Templates</h1>
+    <p class="subtitle">Preview of Adaptive Cards as rendered in Microsoft Teams</p>
+    <div class="cards-grid" id="cardsContainer"></div>
+
+    <script>
+        // Sample data to fill template variables
+        const sampleData = {
+            OwnerDisplayName: "Alex Grover",
+            AgentName: "HR Policy Assistant",
+            PackageId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+            Platform: "Microsoft 365 Copilot",
+            FlaggedDate: "21 May 2026",
+            RiskyPromptMatches: "Performance Management, ICFR",
+            Details: "67 active users (limit: 50)",
+            ElementId: "elem-001",
+            LearnMoreUrl: "https://contoso.sharepoint.com/sites/AgentGuard/SitePages/Governance-Policy.aspx"
+        };
+
+        // Replace template variables in JSON string
+        function fillTemplate(json) {
+            let filled = json;
+            for (const [key, value] of Object.entries(sampleData)) {
+                filled = filled.replaceAll('${' + key + '}', value);
+            }
+            return filled;
+        }
+
+        // Card definitions
+        const cards = [
+            {
+                label: "DescriptionNonCompliant",
+                card: {
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard",
+                    "version": "1.4",
+                    "body": [
+                        { "type": "TextBlock", "text": "⚠️ Compliance Issue — Invalid Description", "weight": "Bolder", "size": "Large", "color": "Warning" },
+                        { "type": "TextBlock", "text": `Hi ${sampleData.OwnerDisplayName}, your agent's description does not meet compliance requirements and has been flagged for review.`, "wrap": true },
+                        { "type": "FactSet", "facts": [
+                            { "title": "Agent", "value": sampleData.AgentName },
+                            { "title": "Package ID", "value": sampleData.PackageId },
+                            { "title": "Platform", "value": sampleData.Platform },
+                            { "title": "Flagged on", "value": sampleData.FlaggedDate }
+                        ]},
+                        { "type": "TextBlock", "text": "Your agent's description must meet all of the following rules:", "wrap": true, "spacing": "Medium", "weight": "Bolder" },
+                        { "type": "TextBlock", "text": "• Minimum 10 characters\n• At least 2 words\n• No placeholder text (e.g. test, tbd, n/a, placeholder, asdf, none, abc)", "wrap": true },
+                        { "type": "TextBlock", "text": "Your agent has been blocked. Update your agent's description to a meaningful summary of what it does — the agent will be automatically re-checked and unblocked if compliant.", "wrap": true, "spacing": "Medium" }
+                    ],
+                    "actions": [
+                        { "type": "Action.OpenUrl", "title": "Open Agent Builder", "url": "#" },
+                        { "type": "Action.OpenUrl", "title": "Learn More", "url": "#" }
+                    ]
+                }
+            },
+            {
+                label: "RiskyPromptFlag",
+                card: {
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard",
+                    "version": "1.4",
+                    "body": [
+                        { "type": "TextBlock", "text": "🚨 Compliance Issue — Risky Prompt Detected", "weight": "Bolder", "size": "Large", "color": "Attention" },
+                        { "type": "TextBlock", "text": `Hi ${sampleData.OwnerDisplayName}, your agent's instructions or description contain flagged keywords and has been referred for governance review.`, "wrap": true },
+                        { "type": "FactSet", "facts": [
+                            { "title": "Agent", "value": sampleData.AgentName },
+                            { "title": "Package ID", "value": sampleData.PackageId },
+                            { "title": "Platform", "value": sampleData.Platform },
+                            { "title": "Matched keywords", "value": sampleData.RiskyPromptMatches },
+                            { "title": "Flagged on", "value": sampleData.FlaggedDate }
+                        ]},
+                        { "type": "TextBlock", "text": "Your agent has been blocked. Contact the governance team to discuss your agent's use case, then update your agent — it will be automatically re-checked and unblocked if compliant.", "wrap": true, "spacing": "Medium" }
+                    ],
+                    "actions": [
+                        { "type": "Action.OpenUrl", "title": "Open Agent Builder", "url": "#" },
+                        { "type": "Action.OpenUrl", "title": "Learn More", "url": "#" }
+                    ]
+                }
+            },
+            {
+                label: "RiskyPromptWarning",
+                card: {
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard",
+                    "version": "1.4",
+                    "body": [
+                        { "type": "TextBlock", "text": "⚠️ Policy Notice — Risky Prompt Detected", "weight": "Bolder", "size": "Large", "color": "Warning" },
+                        { "type": "TextBlock", "text": `Hi ${sampleData.OwnerDisplayName}, your agent's instructions or description contain flagged keywords. Please review and update your agent before enforcement begins.`, "wrap": true },
+                        { "type": "FactSet", "facts": [
+                            { "title": "Agent", "value": sampleData.AgentName },
+                            { "title": "Package ID", "value": sampleData.PackageId },
+                            { "title": "Platform", "value": sampleData.Platform },
+                            { "title": "Matched keywords", "value": sampleData.RiskyPromptMatches },
+                            { "title": "Flagged on", "value": sampleData.FlaggedDate }
+                        ]},
+                        { "type": "TextBlock", "text": "Your agent is not blocked today. However, agents with flagged keywords will be subject to governance review. Please update your agent's instructions to remove or clarify the flagged content.", "wrap": true, "spacing": "Medium" }
+                    ],
+                    "actions": [
+                        { "type": "Action.OpenUrl", "title": "Open Agent Builder", "url": "#" },
+                        { "type": "Action.OpenUrl", "title": "Learn More", "url": "#" }
+                    ]
+                }
+            },
+            {
+                label: "EmbeddedFileBlock",
+                card: {
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard",
+                    "version": "1.4",
+                    "body": [
+                        { "type": "TextBlock", "text": "📁 Compliance Issue — Embedded Files Detected", "weight": "Bolder", "size": "Large", "color": "Warning" },
+                        { "type": "TextBlock", "text": `Hi ${sampleData.OwnerDisplayName}, your agent contains embedded knowledge files. Under current governance policy, agents with uploaded files should not be shared broadly.`, "wrap": true },
+                        { "type": "FactSet", "facts": [
+                            { "title": "Agent", "value": sampleData.AgentName },
+                            { "title": "Package ID", "value": sampleData.PackageId },
+                            { "title": "Platform", "value": sampleData.Platform },
+                            { "title": "Flagged on", "value": sampleData.FlaggedDate }
+                        ]},
+                        { "type": "TextBlock", "text": "Your agent has been blocked. Remove the embedded files and use SharePoint or OneDrive as the knowledge source instead — the agent will be automatically re-checked and unblocked if compliant. Contact the governance team if you need guidance.", "wrap": true, "spacing": "Medium" }
+                    ],
+                    "actions": [
+                        { "type": "Action.OpenUrl", "title": "Open Agent Builder", "url": "#" },
+                        { "type": "Action.OpenUrl", "title": "Learn More", "url": "#" }
+                    ]
+                }
+            },
+            {
+                label: "EmbeddedFileWarning",
+                card: {
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard",
+                    "version": "1.4",
+                    "body": [
+                        { "type": "TextBlock", "text": "⚠️ Policy Notice — Embedded Files Must Be Removed", "weight": "Bolder", "size": "Large", "color": "Warning" },
+                        { "type": "TextBlock", "text": `Hi ${sampleData.OwnerDisplayName}, your agent contains embedded knowledge files. Under updated governance policy, agents with uploaded files must migrate to SharePoint or OneDrive knowledge sources.`, "wrap": true },
+                        { "type": "FactSet", "facts": [
+                            { "title": "Agent", "value": sampleData.AgentName },
+                            { "title": "Package ID", "value": sampleData.PackageId },
+                            { "title": "Platform", "value": sampleData.Platform },
+                            { "title": "Flagged on", "value": sampleData.FlaggedDate }
+                        ]},
+                        { "type": "TextBlock", "text": "Your agent is not blocked today, but will be automatically blocked on June 30, 2026 if embedded files are not removed. Please update your agent to use SharePoint or OneDrive as the knowledge source before the deadline.", "wrap": true, "spacing": "Medium" }
+                    ],
+                    "actions": [
+                        { "type": "Action.OpenUrl", "title": "Open Agent Builder", "url": "#" },
+                        { "type": "Action.OpenUrl", "title": "Learn More", "url": "#" }
+                    ]
+                }
+            },
+            {
+                label: "Unblocked",
+                card: {
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard",
+                    "version": "1.4",
+                    "body": [
+                        { "type": "TextBlock", "text": "✅ Agent Unblocked", "weight": "Bolder", "size": "Large", "color": "Good" },
+                        { "type": "TextBlock", "text": `Hi ${sampleData.OwnerDisplayName}, thanks for updating your agent — it has passed compliance checks and has been unblocked.`, "wrap": true },
+                        { "type": "FactSet", "facts": [
+                            { "title": "Agent", "value": sampleData.AgentName },
+                            { "title": "Package ID", "value": sampleData.PackageId },
+                            { "title": "Platform", "value": sampleData.Platform },
+                            { "title": "Unblocked on", "value": sampleData.FlaggedDate }
+                        ]},
+                        { "type": "TextBlock", "text": "No further action is required. Your agent is now available to users again.", "wrap": true, "spacing": "Medium" }
+                    ],
+                    "actions": [
+                        { "type": "Action.OpenUrl", "title": "Open Agent", "url": "#" },
+                        { "type": "Action.OpenUrl", "title": "Learn More", "url": "#" }
+                    ]
+                }
+            },
+            {
+                label: "SharingLimit",
+                card: {
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard",
+                    "version": "1.4",
+                    "body": [
+                        { "type": "TextBlock", "text": "👥 Usage Notice — Sharing Limit Exceeded", "weight": "Bolder", "size": "Large", "color": "Warning" },
+                        { "type": "TextBlock", "text": `Hi ${sampleData.OwnerDisplayName}, your agent has exceeded the active user sharing limit. This is not a compliance block — your agent will remain active.`, "wrap": true },
+                        { "type": "FactSet", "facts": [
+                            { "title": "Agent", "value": sampleData.AgentName },
+                            { "title": "Package ID", "value": sampleData.PackageId },
+                            { "title": "Platform", "value": sampleData.Platform },
+                            { "title": "Active users", "value": sampleData.Details },
+                            { "title": "Flagged on", "value": sampleData.FlaggedDate }
+                        ]},
+                        { "type": "TextBlock", "text": "Your agent will not be blocked, however IT will be in contact with you to discuss onboarding details for broad-use agents. This ensures appropriate support, monitoring, and governance is in place.", "wrap": true, "spacing": "Medium" }
+                    ],
+                    "actions": [
+                        { "type": "Action.OpenUrl", "title": "Open Agent", "url": "#" },
+                        { "type": "Action.OpenUrl", "title": "Learn More", "url": "#" }
+                    ]
+                }
+            },
+            {
+                label: "InactivityWarning",
+                card: {
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard",
+                    "version": "1.4",
+                    "body": [
+                        { "type": "TextBlock", "text": "💤 Inactivity Notice — Agent Unused for 90 Days", "weight": "Bolder", "size": "Large", "color": "Warning" },
+                        { "type": "TextBlock", "text": `Hi ${sampleData.OwnerDisplayName}, your agent has had no interactions for 90 days and is scheduled for cleanup.`, "wrap": true },
+                        { "type": "FactSet", "facts": [
+                            { "title": "Agent", "value": sampleData.AgentName },
+                            { "title": "Package ID", "value": sampleData.PackageId },
+                            { "title": "Platform", "value": sampleData.Platform },
+                            { "title": "Last activity", "value": "19 Feb 2026" },
+                            { "title": "Flagged on", "value": sampleData.FlaggedDate }
+                        ]},
+                        { "type": "TextBlock", "text": "If inactivity continues, this agent will be automatically deleted in 30 days. To keep your agent, simply use it or contact the governance team to request an exemption.", "wrap": true, "spacing": "Medium" }
+                    ],
+                    "actions": [
+                        { "type": "Action.OpenUrl", "title": "Open Agent", "url": "#" },
+                        { "type": "Action.OpenUrl", "title": "Learn More", "url": "#" }
+                    ]
+                }
+            },
+            {
+                label: "InactivityDeletion",
+                card: {
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard",
+                    "version": "1.4",
+                    "body": [
+                        { "type": "TextBlock", "text": "🗑️ Agent Flagged for Deletion — 120 Days of Inactivity", "weight": "Bolder", "size": "Large", "color": "Attention" },
+                        { "type": "TextBlock", "text": `Hi ${sampleData.OwnerDisplayName}, your agent has been flagged for deletion due to 120 days of inactivity and will be removed shortly.`, "wrap": true },
+                        { "type": "FactSet", "facts": [
+                            { "title": "Agent", "value": sampleData.AgentName },
+                            { "title": "Package ID", "value": sampleData.PackageId },
+                            { "title": "Platform", "value": sampleData.Platform },
+                            { "title": "Last activity", "value": "20 Jan 2026" },
+                            { "title": "Flagged on", "value": sampleData.FlaggedDate }
+                        ]},
+                        { "type": "TextBlock", "text": "This agent has had no interactions for over 120 days and has been flagged for deletion as part of the tenant lifecycle policy. If you believe this is in error, please contact IT before the agent is removed.", "wrap": true, "spacing": "Medium" }
+                    ],
+                    "actions": [
+                        { "type": "Action.OpenUrl", "title": "Open Agent", "url": "#" },
+                        { "type": "Action.OpenUrl", "title": "Learn More", "url": "#" }
+                    ]
+                }
+            }
+        ];
+
+        // Render all cards
+        const container = document.getElementById('cardsContainer');
+
+        cards.forEach(({ label, card }) => {
+            // Wrapper
+            const wrapper = document.createElement('div');
+            wrapper.className = 'card-wrapper';
+
+            // Teams-like message header
+            wrapper.innerHTML = `
+                <div class="card-header">
+                    <div class="bot-icon">AG</div>
+                    <span class="bot-name">AgentGuard Bot</span>
+                    <span class="timestamp">Today 9:15 AM</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-label">${label}</div>
+                    <div class="ac-container"></div>
+                </div>
+            `;
+            container.appendChild(wrapper);
+
+            // Render Adaptive Card
+            const adaptiveCard = new AdaptiveCards.AdaptiveCard();
+            adaptiveCard.hostConfig = new AdaptiveCards.HostConfig({
+                fontFamily: "'Segoe UI', sans-serif",
+                containerStyles: {
+                    default: {
+                        backgroundColor: "#ffffff",
+                        foregroundColors: {
+                            default: { default: "#242424" },
+                            accent: { default: "#5b5fc7" },
+                            good: { default: "#107c10" },
+                            warning: { default: "#ca5010" },
+                            attention: { default: "#d13438" }
+                        }
+                    }
+                },
+                actions: {
+                    actionAlignment: "Left",
+                    actionsOrientation: "Horizontal",
+                    buttonSpacing: 8
+                },
+                factSet: {
+                    title: { weight: 600, size: "Default", color: "Default" },
+                    value: { weight: 400, size: "Default", color: "Default" },
+                    spacing: 8
+                }
+            });
+
+            adaptiveCard.parse(card);
+            const rendered = adaptiveCard.render();
+            wrapper.querySelector('.ac-container').appendChild(rendered);
+        });
+    </script>
+</body>
+</html>
